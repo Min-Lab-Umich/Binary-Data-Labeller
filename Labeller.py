@@ -3,6 +3,7 @@ from tkinter import ttk
 from pathlib import Path
 import glob, os
 import csv
+from PIL import Image, ImageTk
 
 
 class Labeller(tk.Frame):
@@ -11,6 +12,7 @@ class Labeller(tk.Frame):
     def __init__(self, master, dir_path_str: str, data_type: str):
         super().__init__(master)
         self.master = master
+                
         """Initialise labeller variables"""
         # input/output directory, which contains
         try:
@@ -23,10 +25,11 @@ class Labeller(tk.Frame):
         self.add_all_files()
 
         # check if such a file exists
-        self.config_file = self.dir / "config.txt"
-        self.csv_output_dir = self.dir /  "labels.csv"
-        self.num_labelled = 0
-        if not self.config_file.exists():
+        self.config_file_path = self.dir / "config.txt"
+        self.csv_output_path = self.dir / "labels.csv"
+        
+        self.last_labelled_idx = -1
+        if not self.config_file_path.exists():
             print("New work session")
             # initialise the config file
             # create the output csv
@@ -35,67 +38,88 @@ class Labeller(tk.Frame):
             self.create_csv_file()
         else:
             print("Resuming from a checkpoint")
-            self.num_labelled = self.read_config_file()
+            self.last_labelled_idx = self.read_config_file()
 
         self.opened_csv = None
+        self.current_image_idx = self.last_labelled_idx + 1
         # open csv file, append the csv file
-        with open(self.csv_output_dir, 'a') as self.opened_csv:
-            self.csv_write = csv.writer(self.opened_csv)
-            self.render()
-            
+        self.render()
     
     def save_check_point(self):
         """Save the labelled data back into """
+        with open(self.config_file_path, 'w') as self.config_file:
+            self.config_file.write(str(self.last_labelled_idx))
 
+    def get_current_image_path(self):
+        """Return the path to the current image that we are labelling."""
+        return str(self.dir / self.files[self.current_image_idx])
 
     def render(self):
         """Render the image and the options."""
-        
         # render the image
         # reference: https://stackoverflow.com/questions/23901168/how-do-i-insert-a-jpeg-image-into-a-python-tkinter-window
-        path = 
-        img = ImageTk.PhotoImage(Image.open(path))
-        panel = tk.Label(self.master, image = img)
+        path = self.get_current_image_path()
+        img = Image.open(path)
+        img_tk = ImageTk.PhotoImage(img)
+        panel = tk.Label(self.master, image=img_tk)
+        panel.image = img_tk
         panel.pack()
 
-        # redner the options: yes or no; and bind to keyboard events
+        # render the options: yes or no; and bind to keyboard events
         # reference: https://codereview.stackexchange.com/questions/191477/binding-a-keyboard-key-to-a-tkinter-button
-        yes = ttk.Button(self.master, text="YES", command=self.yes_callback())
-        yes.pack('y', lambda event: self.yes_callback())
+        yes = ttk.Button(self.master, text="YES", command=self.yes_callback)
+        self.master.bind('y', lambda event: self.yes_callback())
 
-        no = ttk.Button(self.master, text="NO", command=self.no_callback())
-        no.pack('n', lambda event: self.no_callback())
+        no = ttk.Button(self.master, text="NO", command=self.no_callback)
+        self.master.bind('n', lambda event: self.no_callback())
 
+        yes.pack()
+        no.pack()
+
+    def open_csv_output(self, func):
+        with open(self.csv_output_path, 'w') as self.opened_csv:
+            self.csv_writer = csv.writer(self.opened_csv)
+            func()
+
+    def write_to_csv(self, filename, value):
+        self.open_csv_output(lambda :
+                             self.csv_writer.
+                             writerow([filename, value]))
+        self.last_labelled_idx += 1
+        self.current_image_idx = self.last_labelled_idx + 1
+        self.render()
 
     def yes_callback(self):
-        
-
-        pass
+        """Write a yes to the output file."""
+        self.write_to_csv(self.get_current_image_path(), 1)
 
     def no_callback(self):
-        pass
+        """Write a no to the output file."""
+        self.write_to_csv(self.get_current_image_path(), 0)
 
     def add_all_files(self):
         """Index all the files.
         
         Assume glob.glob iterations' order doesn't change across runs...
         """
-        for file in glob.glob(f"*.{self.data_type}"):
+        for file in os.listdir(self.dir):
+            if file.endswith(f".{self.data_type}"):
             # append all the files
-            self.files.append(file)
+                self.files.append(file)
 
     def init_config(self):
         """Touch a configuration file."""
-        pass
+        with open(self.config_file_path, 'w') as self.config_file:
+            self.config_file.write("-1") # 
 
     def create_csv_file(self):
         """Create a csv file for output"""
-        with open(self.csv_output_dir, 'w') as _:
+        with open(self.csv_output_path, 'w') as _:
             pass
         
 
     def read_config_file(self):
         """Read the configuration file and return . Should only contain 1 number."""
-        with open(self.config_file, 'r') as file:
-            data = file.read()
-            return int(data)
+        with open(self.config_file_path, 'r') as file:
+            data = list(map(int, file.readlines()))
+            return int(data[0])

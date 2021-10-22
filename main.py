@@ -11,5 +11,5 @@ if __name__ == '__main__':
     print_hi('PyCharm')
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
-app = Labeller(tk.Frame(), './', '.jpg')
+app = Labeller(tk.Tk(), './test', 'png')
 app.mainloop()
