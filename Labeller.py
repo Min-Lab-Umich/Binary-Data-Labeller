@@ -23,6 +23,9 @@ class Labeller(tk.Frame):
         self.data_type = data_type
         self.files = []
         self.add_all_files()
+        self.img = None
+        self.panel = None
+        self.img_tk = None
 
         # check if such a file exists
         self.config_file_path = self.dir / "config.txt"
@@ -43,7 +46,7 @@ class Labeller(tk.Frame):
         self.opened_csv = None
         self.current_image_idx = self.last_labelled_idx + 1
         # open csv file, append the csv file
-        self.render()
+        self.render_initial()
     
     def save_check_point(self):
         """Save the labelled data back into """
@@ -54,27 +57,34 @@ class Labeller(tk.Frame):
         """Return the path to the current image that we are labelling."""
         return str(self.dir / self.files[self.current_image_idx])
 
-    def render(self):
+    def render_next(self):
+        """Render the next image."""
+        path = self.get_current_image_path()
+        self.img = Image.open(path)
+        self.img_tk = ImageTk.PhotoImage(self.img)
+        if self.panel is not None:
+            self.panel.configure(image=self.img_tk)
+            self.panel.image = self.img_tk
+
+
+    def render_initial(self):
         """Render the image and the options."""
         # render the image
         # reference: https://stackoverflow.com/questions/23901168/how-do-i-insert-a-jpeg-image-into-a-python-tkinter-window
-        path = self.get_current_image_path()
-        img = Image.open(path)
-        img_tk = ImageTk.PhotoImage(img)
-        panel = tk.Label(self.master, image=img_tk)
-        panel.image = img_tk
-        panel.pack()
+        self.render_next()
+        self.panel = tk.Label(self.master, image=self.img_tk)
+        self.panel.pack()
 
         # render the options: yes or no; and bind to keyboard events
         # reference: https://codereview.stackexchange.com/questions/191477/binding-a-keyboard-key-to-a-tkinter-button
-        yes = ttk.Button(self.master, text="YES", command=self.yes_callback)
+        self.yes = ttk.Button(self.master, text="YES", command=self.yes_callback)
         self.master.bind('y', lambda event: self.yes_callback())
 
-        no = ttk.Button(self.master, text="NO", command=self.no_callback)
+        self.no = ttk.Button(self.master, text="NO", command=self.no_callback)
         self.master.bind('n', lambda event: self.no_callback())
 
-        yes.pack()
-        no.pack()
+        self.yes.pack()
+        self.no.pack()
 
     def open_csv_output(self, func):
         with open(self.csv_output_path, 'w') as self.opened_csv:
@@ -87,7 +97,7 @@ class Labeller(tk.Frame):
                              writerow([filename, value]))
         self.last_labelled_idx += 1
         self.current_image_idx = self.last_labelled_idx + 1
-        self.render()
+        self.render_next()
 
     def yes_callback(self):
         """Write a yes to the output file."""
