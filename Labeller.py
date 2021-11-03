@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import csv
 from PIL import Image, ImageTk
+import cv2
 
 
 class Labeller(tk.Frame):
@@ -76,7 +77,12 @@ class Labeller(tk.Frame):
     def render_next(self):
         """Render the next image."""
         path = self.get_current_image_path()
-        self.img = Image.open(path)
+        print(path)
+        img = cv2.imread(path)
+        b, g, r = cv2.split(img)
+        img = cv2.merge((r, g, b))
+        self.img = Image.fromarray(img)
+        # self.img.show()
         self.img_tk = ImageTk.PhotoImage(self.img)
         if self.panel is not None:
             self.panel.configure(image=self.img_tk)
@@ -110,7 +116,8 @@ class Labeller(tk.Frame):
     def write_to_csv(self, filename, value):
 
         def write():
-            self.csv_writer.writerow([filename, value])
+            actual_filename = filename.split('/')[-1]
+            self.csv_writer.writerow([actual_filename, value])
 
         self.open_csv_output(write)
         self.save_check_point()
