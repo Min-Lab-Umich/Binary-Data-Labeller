@@ -5,7 +5,7 @@ import os
 import csv
 from PIL import Image, ImageTk
 import cv2
-
+import shutil
 
 class Labeller(tk.Frame):
     """Labelling true or false data"""
@@ -32,8 +32,11 @@ class Labeller(tk.Frame):
 
         # check if such a file exists
         self.config_file_path = self.dir / "config.txt"
-        self.csv_output_path = self.dir / "labels.csv"
-
+        # self.csv_output_path = self.dir / "labels.csv"
+        
+        self.particle_path = self.dir / "output/particle"
+        self.non_particle_path = self.dir / "output/non_particle"
+        self.create_output_dir()
         self.current_image_idx = 0
         if not self.config_file_path.exists():
             print("New work session")
@@ -41,7 +44,7 @@ class Labeller(tk.Frame):
             # create the output csv
             self.init_config()
             # create csv file
-            self.create_csv_file()
+            # self.create_csv_file()
         else:
             print("Resuming from a checkpoint")
             self.current_image_idx = self.read_config_file()
@@ -50,6 +53,10 @@ class Labeller(tk.Frame):
         self.current_image_idx += 1
         # open csv file, append the csv file
         self.render_initial()
+
+    def create_output_dir(self):
+        os.makedirs(self.particle_path, exist_ok=True)
+        os.makedirs(self.non_particle_path, exist_ok=True)
 
     def save_check_point(self):
         """Save the labelled data back into """
@@ -60,7 +67,7 @@ class Labeller(tk.Frame):
         """Return the path to the current image that we are labelling."""
         if self.current_image_idx >= len(self.files):
             self.render_finished()
-            return str(self.dir / self.files[len(self.files) - 1])
+            # return str(self.dir / self.files[len(self.files) - 1])
 
         return str(self.dir / self.files[self.current_image_idx])
 
@@ -108,32 +115,36 @@ class Labeller(tk.Frame):
         self.yes.pack()
         self.no.pack()
 
-    def open_csv_output(self, func):
-        with open(self.csv_output_path, 'a') as self.opened_csv:
-            self.csv_writer = csv.writer(self.opened_csv)
-            func()
+    # def open_csv_output(self, func):
+    #     with open(self.csv_output_path, 'a') as self.opened_csv:
+    #         self.csv_writer = csv.writer(self.opened_csv)
+    #         func()
 
-    def write_to_csv(self, filename, value):
-
-        def write():
-            actual_filename = filename.split('/')[-1]
-            self.csv_writer.writerow([actual_filename, value])
-
-        self.open_csv_output(write)
+    def copy_file(self, filename, is_particle):
+        """Copy the file to an appropriate output folder"""
+        
+        copy_to_dir = None
+                    
         self.save_check_point()
         self.current_image_idx += 1
         if self.current_image_idx != len(self.files):
             self.render_next()
         else:
             self.render_finished()
+            
+        if is_particle:
+            copy_to_dir = self.particle_path
+        else:
+            copy_to_dir = self.non_particle_path
+        shutil.copyfile(filename, f"{copy_to_dir}/{filename.split('/')[-1]}")
 
     def yes_callback(self):
         """Write a yes to the output file."""
-        self.write_to_csv(self.get_current_image_path(), 1)
+        self.copy_file(self.get_current_image_path(), 1)
 
     def no_callback(self):
         """Write a no to the output file."""
-        self.write_to_csv(self.get_current_image_path(), 0)
+        self.copy_file(self.get_current_image_path(), 0)
 
     def add_all_files(self):
         """Index all the files.
@@ -150,10 +161,10 @@ class Labeller(tk.Frame):
         with open(self.config_file_path, 'w') as self.config_file:
             self.config_file.write("-1")  #
 
-    def create_csv_file(self):
-        """Create a csv file for output"""
-        with open(self.csv_output_path, 'w') as _:
-            pass
+    # def create_csv_file(self):
+        # """Create a csv file for output"""
+        # with open(self.csv_output_path, 'w') as _:
+            # pass
 
     def read_config_file(self):
         """Read the configuration file and return . Should only contain 1 number."""
